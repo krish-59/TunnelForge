@@ -12,6 +12,10 @@ alwaysApply: false
 - [x] TypeScript configurations
 - [x] Development scripts (dev, build, test)
 - [x] Git configuration [.gitignore](mdc:.gitignore)
+- [x] Documentation setup
+  - [x] Root [README.md](mdc:README.md)
+  - [x] Server [server/README.md](mdc:server/README.md)
+  - [x] Dashboard [dashboard/README.md](mdc:dashboard/README.md)
 
 ## Server Implementation
 ### Core Server (70% Complete)
@@ -102,4 +106,5 @@ alwaysApply: false
 - [ ] Production configurations
 - [ ] Docker setup (if needed)
 - [ ] CI/CD setup
+
 
