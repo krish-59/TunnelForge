@@ -3,10 +3,27 @@ import WebSocket from "ws";
 import { program } from "commander";
 import http from "http";
 import chalk from "chalk";
+import axios from "axios";
+import { v4 as uuidv4 } from "uuid";
 
 interface TunnelOptions {
   port: number;
   server: string;
+}
+
+interface TunnelRequest {
+  method: string;
+  path: string;
+  headers: Record<string, string>;
+  body?: string;
+  requestId: string;
+}
+
+interface TunnelResponse {
+  requestId: string;
+  statusCode: number;
+  headers: Record<string, string>;
+  body?: string;
 }
 
 program
@@ -29,6 +46,46 @@ if (!options.port) {
   program.help();
 }
 
+async function handleTunnelRequest(
+  request: TunnelRequest,
+  localPort: number
+): Promise<TunnelResponse> {
+  try {
+    // Forward the request to local server
+    const response = await axios({
+      method: request.method,
+      url: `http://localhost:${localPort}${request.path}`,
+      headers: request.headers,
+      data: request.body,
+      validateStatus: () => true, // Accept any status code
+    });
+
+    // Prepare tunnel response
+    const tunnelResponse: TunnelResponse = {
+      requestId: request.requestId,
+      statusCode: response.status,
+      headers: response.headers as Record<string, string>,
+      body:
+        typeof response.data === "string"
+          ? response.data
+          : JSON.stringify(response.data),
+    };
+
+    return tunnelResponse;
+  } catch (error) {
+    console.error(chalk.red(`Error forwarding request: ${error.message}`));
+    // Return error response
+    return {
+      requestId: request.requestId,
+      statusCode: 502,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        error: "Failed to forward request to local server",
+      }),
+    };
+  }
+}
+
 async function startTunnel(options: TunnelOptions) {
   const ws = new WebSocket(options.server);
 
@@ -38,17 +95,28 @@ async function startTunnel(options: TunnelOptions) {
     ws.send(JSON.stringify({ port: options.port }));
   });
 
-  ws.on("message", (data: Buffer) => {
+  ws.on("message", async (data: Buffer) => {
     try {
       const message = JSON.parse(data.toString());
+
       if (message.type === "tunnel_created") {
         console.log(
           chalk.green(`\nTunnel established! Your URL is: ${message.url}`)
         );
         console.log(chalk.gray("\nPress Ctrl+C to stop the tunnel\n"));
+      } else if (message.type === "request") {
+        // Handle incoming tunnel request
+        console.log(chalk.blue(`→ ${message.method} ${message.path}`));
+
+        const response = await handleTunnelRequest(message, options.port);
+
+        // Send response back through tunnel
+        ws.send(JSON.stringify(response));
+
+        console.log(chalk.green(`← ${response.statusCode} ${message.path}`));
       }
     } catch (err) {
-      console.error(chalk.red("Failed to parse server message:", err));
+      console.error(chalk.red("Failed to handle message:", err));
     }
   });
 

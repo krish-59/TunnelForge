@@ -3,7 +3,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { TunnelManager } from "./services/tunnelManager";
 import { Request, Response } from "express";
 import rateLimit from "express-rate-limit";
-import httpProxy from "http-proxy";
+import { v4 as uuidv4 } from "uuid";
 
 interface TunnelServerOptions {
   httpServer: HttpServer;
@@ -11,10 +11,12 @@ interface TunnelServerOptions {
 }
 
 interface TunnelRequest {
+  type: "request";
   method: string;
   path: string;
   headers: Record<string, string>;
   body?: string;
+  requestId: string;
 }
 
 interface TunnelResponse {
@@ -33,7 +35,6 @@ export class TunnelServer {
   private readonly httpServer: HttpServer;
   private readonly wss: WebSocketServer;
   private readonly tunnelManager: TunnelManager;
-  private readonly proxy: httpProxy;
   private readonly pendingResponses: Map<string, PendingResponse>;
   private readonly port: number;
 
@@ -45,7 +46,6 @@ export class TunnelServer {
       path: "/connect",
     });
     this.tunnelManager = new TunnelManager();
-    this.proxy = httpProxy.createProxyServer();
     this.pendingResponses = new Map();
   }
 
@@ -80,7 +80,8 @@ export class TunnelServer {
                 response.requestId
               );
               if (pendingResponse) {
-                const { res } = pendingResponse;
+                const { res, timeout } = pendingResponse;
+                clearTimeout(timeout); // Clear timeout since we got a response
                 res.status(response.statusCode);
                 Object.entries(response.headers).forEach(([key, value]) => {
                   res.setHeader(key, value);
@@ -89,17 +90,22 @@ export class TunnelServer {
                 this.pendingResponses.delete(response.requestId);
               }
             } catch (err) {
-              // eslint-disable-next-line no-console
               console.error("Failed to handle tunnel response:", err);
             }
           });
 
           socket.on("close", () => {
-            // eslint-disable-next-line no-console
             console.log(`Tunnel ${tunnel.id} disconnected`);
+            // Clean up any pending responses for this tunnel
+            for (const [
+              requestId,
+              { res },
+            ] of this.pendingResponses.entries()) {
+              res.status(504).json({ error: "Tunnel disconnected" });
+              this.pendingResponses.delete(requestId);
+            }
           });
         } catch (err) {
-          // eslint-disable-next-line no-console
           console.error("Failed to parse tunnel connection data:", err);
           socket.close(1008, "Invalid connection data");
         }
@@ -144,19 +150,35 @@ export class TunnelServer {
     // Increment request count
     this.tunnelManager.incrementRequestCount(tunnelId);
 
-    // Forward request to local target
-    const targetUrl = `http://localhost:${tunnel.localPort}`;
-
     try {
-      this.proxy.web(req, res, { target: targetUrl }, (error: Error) => {
-        if (error) {
-          // eslint-disable-next-line no-console
-          console.error(`Proxy error for tunnel ${tunnelId}:`, error);
-          res.status(502).json({ error: "Failed to proxy request" });
+      // Create a unique ID for this request
+      const requestId = uuidv4();
+
+      // Prepare the tunnel request
+      const tunnelRequest: TunnelRequest = {
+        type: "request",
+        requestId,
+        method: req.method,
+        path: req.path.replace(`/${tunnelId}`, ""), // Remove tunnel ID from path
+        headers: req.headers as Record<string, string>,
+        body: req.body,
+      };
+
+      // Set a timeout for the response
+      const timeout = setTimeout(() => {
+        const pending = this.pendingResponses.get(requestId);
+        if (pending) {
+          pending.res.status(504).json({ error: "Request timeout" });
+          this.pendingResponses.delete(requestId);
         }
-      });
+      }, 30000); // 30 second timeout
+
+      // Store the response object and timeout
+      this.pendingResponses.set(requestId, { res, timeout });
+
+      // Send the request through the tunnel
+      tunnel.socket.send(JSON.stringify(tunnelRequest));
     } catch (error: unknown) {
-      // eslint-disable-next-line no-console
       console.error(`Failed to handle request for tunnel ${tunnelId}:`, error);
       res.status(500).json({ error: "Internal server error" });
     }
@@ -170,5 +192,9 @@ export class TunnelServer {
 
   public getTunnelManager(): TunnelManager {
     return this.tunnelManager;
+  }
+
+  public getPort(): number {
+    return this.port;
   }
 }
