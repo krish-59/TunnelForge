@@ -1,0 +1,33 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# TunnelForge Development Workflow
+
+## Starting Development Servers
+1. Start the tunnel server:
+```bash
+npm run dev --workspace server
+```
+Server runs on port 3000:
+- Health check: http://localhost:3000/health
+- WebSocket: ws://localhost:3000/connect
+- API: http://localhost:3000/api/*
+
+2. Start the dashboard:
+```bash
+npm run dev --workspace dashboard
+```
+Dashboard runs on port 4040 with API proxy to server
+
+## Key Files for Development
+- Server entry: [server/src/index.ts](mdc:server/src/index.ts)
+- WebSocket server: [server/src/tunnelServer.ts](mdc:server/src/tunnelServer.ts)
+- Dashboard entry: [dashboard/src/App.tsx](mdc:dashboard/src/App.tsx)
+
+## Testing
+- Server tests: `npm test --workspace server`
+- Dashboard tests: `npm test --workspace dashboard`
+- All tests: `npm test` (root)
+

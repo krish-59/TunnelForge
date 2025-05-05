@@ -1,0 +1,105 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# TunnelForge Implementation Checklist
+
+## Project Setup ✅
+- [x] Monorepo structure with npm workspaces
+- [x] Server workspace setup
+- [x] Dashboard workspace setup
+- [x] TypeScript configurations
+- [x] Development scripts (dev, build, test)
+- [x] Git configuration [.gitignore](mdc:.gitignore)
+
+## Server Implementation
+### Core Server (70% Complete)
+- [x] Basic Express server setup [server/src/index.ts](mdc:server/src/index.ts)
+- [x] Health check endpoint
+- [x] WebSocket server initialization [server/src/tunnelServer.ts](mdc:server/src/tunnelServer.ts)
+- [x] API router structure [server/src/api/index.ts](mdc:server/src/api/index.ts)
+- [ ] Tunnel management system
+  - [ ] Tunnel creation
+  - [ ] Tunnel deletion
+  - [ ] Active tunnels tracking
+- [ ] Request forwarding logic
+- [ ] Rate limiting implementation
+- [ ] Error handling & logging
+
+### CLI Implementation (30% Complete)
+- [x] Basic CLI setup [server/bin/connect.ts](mdc:server/bin/connect.ts)
+- [x] Command line arguments parsing
+- [ ] WebSocket client connection
+- [ ] Local port forwarding
+- [ ] Error handling
+- [ ] Reconnection logic
+- [ ] Progress/Status display
+
+### API Endpoints (10% Complete)
+- [x] API router setup
+- [ ] GET /api/tunnels endpoint
+- [ ] GET /api/tunnels/:id endpoint
+- [ ] POST /api/tunnels endpoint
+- [ ] DELETE /api/tunnels/:id endpoint
+- [ ] GET /api/tunnels/:id/stats endpoint
+
+## Dashboard Implementation (20% Complete)
+### Basic Setup
+- [x] Vite + React configuration
+- [x] Basic App component [dashboard/src/App.tsx](mdc:dashboard/src/App.tsx)
+- [x] Entry point setup [dashboard/src/main.tsx](mdc:dashboard/src/main.tsx)
+- [x] API proxy configuration
+
+### Features
+- [ ] Components
+  - [ ] TunnelList
+  - [ ] TunnelCard
+  - [ ] StatsDisplay
+  - [ ] RateLimitIndicator
+- [ ] API Integration
+  - [ ] Fetch tunnels
+  - [ ] Real-time updates
+  - [ ] Error handling
+- [ ] Styling
+  - [ ] Layout
+  - [ ] Responsive design
+  - [ ] Theme
+
+## Testing
+### Server Tests (10% Complete)
+- [x] Test setup with Jest
+- [x] Placeholder test
+- [ ] Unit Tests
+  - [ ] Tunnel management
+  - [ ] WebSocket handling
+  - [ ] Rate limiting
+  - [ ] API endpoints
+- [ ] Integration Tests
+  - [ ] End-to-end tunnel creation
+  - [ ] Request forwarding
+  - [ ] Rate limit behavior
+
+### Dashboard Tests (5% Complete)
+- [x] Test setup
+- [ ] Component Tests
+  - [ ] App
+  - [ ] TunnelList
+  - [ ] TunnelCard
+- [ ] Integration Tests
+  - [ ] API integration
+  - [ ] Real-time updates
+
+## Documentation
+- [ ] README updates
+- [ ] API documentation
+- [ ] Setup instructions
+- [ ] Usage examples
+- [ ] Contributing guidelines
+
+## Deployment
+- [ ] Build scripts
+- [ ] Production configurations
+- [ ] Docker setup (if needed)
+- [ ] CI/CD setup
+

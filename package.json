@@ -1,0 +1,21 @@
+{
+  "name": "tunnelforge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ngrok-like tunneling service with rate-limiting and React dashboard (MVP)",
+  "workspaces": [
+    "server",
+    "dashboard"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace server",
+    "start": "npm run start --workspace server",
+    "build": "npm run build --workspaces",
+    "test": "npm test --workspaces"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/tunnelforge.git"
+  },
+  "license": "MIT"
+}

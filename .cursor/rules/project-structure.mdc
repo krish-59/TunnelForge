@@ -1,0 +1,36 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# TunnelForge Project Structure
+
+## Root Configuration
+- [package.json](mdc:package.json) - Monorepo configuration with workspaces
+- [Implementation-plan.md](mdc:Implementation-plan.md) - Detailed project implementation plan
+
+## Server Workspace
+Main server implementation files:
+- [server/src/index.ts](mdc:server/src/index.ts) - Express server entry point
+- [server/src/tunnelServer.ts](mdc:server/src/tunnelServer.ts) - WebSocket tunnel server
+- [server/src/api/index.ts](mdc:server/src/api/index.ts) - API routes
+- [server/src/utils/index.ts](mdc:server/src/utils/index.ts) - Utility functions
+
+CLI implementation:
+- [server/bin/connect.ts](mdc:server/bin/connect.ts) - CLI entry point
+
+Configuration:
+- [server/package.json](mdc:server/package.json) - Server dependencies
+- [server/tsconfig.json](mdc:server/tsconfig.json) - TypeScript config
+
+## Dashboard Workspace
+React implementation:
+- [dashboard/src/main.tsx](mdc:dashboard/src/main.tsx) - React entry point
+- [dashboard/src/App.tsx](mdc:dashboard/src/App.tsx) - Root component
+- [dashboard/index.html](mdc:dashboard/index.html) - HTML template
+
+Configuration:
+- [dashboard/package.json](mdc:dashboard/package.json) - Dashboard dependencies
+- [dashboard/tsconfig.json](mdc:dashboard/tsconfig.json) - TypeScript config
+- [dashboard/vite.config.ts](mdc:dashboard/vite.config.ts) - Vite build config
+
