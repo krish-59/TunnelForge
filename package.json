@@ -17,5 +17,9 @@
     "type": "git",
     "url": "git+https://github.com/yourusername/tunnelforge.git"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@types/cors": "^2.8.17",
+    "cors": "^2.8.5"
+  }
 }

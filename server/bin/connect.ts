@@ -33,7 +33,7 @@ program
   .option(
     "-s, --server <url>",
     "TunnelForge server URL",
-    "ws://localhost:3000/connect"
+    "ws://localhost:3000/ws"
   )
   .version("0.1.0");
 
@@ -72,7 +72,7 @@ async function handleTunnelRequest(
     };
 
     return tunnelResponse;
-  } catch (error) {
+  } catch (error: any) {
     console.error(chalk.red(`Error forwarding request: ${error.message}`));
     // Return error response
     return {

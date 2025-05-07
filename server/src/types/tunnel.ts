@@ -5,6 +5,7 @@ export interface TunnelStats {
   lastRequestTime: number | null;
   createdAt: number;
   rateLimitRemaining: number;
+  rateLimitReset: number;
 }
 
 export interface Tunnel {

@@ -1,14 +1,11 @@
-import { Server as HttpServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
-import { TunnelManager } from "./services/tunnelManager";
 import { Request, Response } from "express";
 import rateLimit from "express-rate-limit";
 import { v4 as uuidv4 } from "uuid";
-
-interface TunnelServerOptions {
-  httpServer: HttpServer;
-  port: number;
-}
+import { TunnelManager } from "./services/tunnelManager";
+import { logger } from "./utils/logger";
+import { APIError } from "./middleware/errorHandler";
+import { Server } from "http";
 
 interface TunnelRequest {
   type: "request";
@@ -31,39 +28,56 @@ interface PendingResponse {
   timeout: NodeJS.Timeout;
 }
 
+interface TunnelServerOptions {
+  httpServer: Server;
+  port: number;
+}
+
 export class TunnelServer {
-  private readonly httpServer: HttpServer;
   private readonly wss: WebSocketServer;
   private readonly tunnelManager: TunnelManager;
   private readonly pendingResponses: Map<string, PendingResponse>;
   private readonly port: number;
 
   constructor(options: TunnelServerOptions) {
-    this.httpServer = options.httpServer;
-    this.port = options.port;
     this.wss = new WebSocketServer({
-      server: this.httpServer,
-      path: "/connect",
+      server: options.httpServer,
+      path: "/ws",
+      clientTracking: true,
     });
     this.tunnelManager = new TunnelManager();
     this.pendingResponses = new Map();
+    this.port = options.port;
+    this.setupWebSocketServer();
   }
 
-  public start() {
+  public getPort(): number {
+    return this.port;
+  }
+
+  private setupWebSocketServer() {
     this.wss.on("connection", (socket: WebSocket) => {
+      logger.info("New WebSocket connection established");
+
       socket.once("message", (data: Buffer) => {
         try {
           const { port } = JSON.parse(data.toString());
           if (!port || typeof port !== "number") {
+            logger.warn("Invalid port received in connection data", { port });
             socket.close(1008, "Invalid port");
             return;
           }
 
           const tunnel = this.tunnelManager.createTunnel(socket, port);
-          console.log(`Tunnel created: ${tunnel.id} -> localhost:${port}`);
+          logger.info(`Tunnel created`, {
+            tunnelId: tunnel.id,
+            localPort: port,
+          });
 
           // Send tunnel URL to client
-          const tunnelUrl = `http://localhost:${this.port}/${tunnel.id}`;
+          const tunnelUrl = `${
+            process.env.PUBLIC_URL || "http://localhost:3000"
+          }/${tunnel.id}`;
           socket.send(
             JSON.stringify({
               type: "tunnel_created",
@@ -79,23 +93,33 @@ export class TunnelServer {
               const pendingResponse = this.pendingResponses.get(
                 response.requestId
               );
+
               if (pendingResponse) {
                 const { res, timeout } = pendingResponse;
-                clearTimeout(timeout); // Clear timeout since we got a response
+                clearTimeout(timeout);
                 res.status(response.statusCode);
                 Object.entries(response.headers).forEach(([key, value]) => {
                   res.setHeader(key, value);
                 });
                 res.end(response.body);
                 this.pendingResponses.delete(response.requestId);
+
+                logger.debug("Tunnel response sent", {
+                  tunnelId: tunnel.id,
+                  requestId: response.requestId,
+                  statusCode: response.statusCode,
+                });
               }
             } catch (err) {
-              console.error("Failed to handle tunnel response:", err);
+              logger.error("Failed to handle tunnel response", {
+                error: err,
+                tunnelId: tunnel.id,
+              });
             }
           });
 
           socket.on("close", () => {
-            console.log(`Tunnel ${tunnel.id} disconnected`);
+            logger.info(`Tunnel disconnected`, { tunnelId: tunnel.id });
             // Clean up any pending responses for this tunnel
             for (const [
               requestId,
@@ -104,9 +128,19 @@ export class TunnelServer {
               res.status(504).json({ error: "Tunnel disconnected" });
               this.pendingResponses.delete(requestId);
             }
+            this.tunnelManager.removeTunnel(tunnel.id);
+          });
+
+          socket.on("error", (error) => {
+            logger.error("WebSocket error", {
+              error,
+              tunnelId: tunnel.id,
+            });
           });
         } catch (err) {
-          console.error("Failed to parse tunnel connection data:", err);
+          logger.error("Failed to parse tunnel connection data", {
+            error: err,
+          });
           socket.close(1008, "Invalid connection data");
         }
       });
@@ -124,6 +158,10 @@ export class TunnelServer {
         return tunnelId || req.ip || "default";
       },
       skipFailedRequests: true,
+      handler: (req: Request) => {
+        const tunnelId = this.getTunnelIdFromRequest(req);
+        throw new APIError(429, "Rate limit exceeded", { tunnelId });
+      },
     });
   }
 
@@ -131,35 +169,32 @@ export class TunnelServer {
   public async handleTunnelRequest(req: Request, res: Response) {
     const tunnelId = this.getTunnelIdFromRequest(req);
     if (!tunnelId) {
-      res.status(404).json({ error: "Invalid tunnel URL" });
-      return;
+      throw new APIError(404, "Invalid tunnel URL");
     }
 
     const tunnel = this.tunnelManager.getTunnel(tunnelId);
     if (!tunnel) {
-      res.status(404).json({ error: "Tunnel not found" });
-      return;
+      throw new APIError(404, "Tunnel not found", { tunnelId });
     }
 
     // Check if tunnel has exceeded rate limit
     if (tunnel.stats.rateLimitRemaining <= 0) {
-      res.status(429).json({ error: "Rate limit exceeded" });
-      return;
+      throw new APIError(429, "Rate limit exceeded", {
+        tunnelId,
+        resetTime: tunnel.stats.rateLimitReset,
+      });
     }
 
     // Increment request count
     this.tunnelManager.incrementRequestCount(tunnelId);
 
     try {
-      // Create a unique ID for this request
       const requestId = uuidv4();
-
-      // Prepare the tunnel request
       const tunnelRequest: TunnelRequest = {
         type: "request",
         requestId,
         method: req.method,
-        path: req.path.replace(`/${tunnelId}`, ""), // Remove tunnel ID from path
+        path: req.path.replace(`/${tunnelId}`, ""),
         headers: req.headers as Record<string, string>,
         body: req.body,
       };
@@ -170,6 +205,10 @@ export class TunnelServer {
         if (pending) {
           pending.res.status(504).json({ error: "Request timeout" });
           this.pendingResponses.delete(requestId);
+          logger.warn("Request timeout", {
+            tunnelId,
+            requestId,
+          });
         }
       }, 30000); // 30 second timeout
 
@@ -178,23 +217,28 @@ export class TunnelServer {
 
       // Send the request through the tunnel
       tunnel.socket.send(JSON.stringify(tunnelRequest));
+
+      logger.debug("Tunnel request sent", {
+        tunnelId,
+        requestId,
+        method: req.method,
+        path: req.path,
+      });
     } catch (error: unknown) {
-      console.error(`Failed to handle request for tunnel ${tunnelId}:`, error);
-      res.status(500).json({ error: "Internal server error" });
+      logger.error("Failed to handle tunnel request", {
+        error,
+        tunnelId,
+      });
+      throw new APIError(500, "Failed to process tunnel request", { tunnelId });
     }
   }
 
   private getTunnelIdFromRequest(req: Request): string | null {
-    // Extract tunnel ID from URL path: /:tunnelId/*
     const match = req.path.match(/^\/([^\/]+)(\/.*)?$/);
     return match ? match[1] : null;
   }
 
   public getTunnelManager(): TunnelManager {
     return this.tunnelManager;
-  }
-
-  public getPort(): number {
-    return this.port;
   }
 }

@@ -2,6 +2,31 @@
 
 This document outlines a detailed plan to develop an open-source npm package that replicates **ngrok-like HTTP/HTTPS tunneling** with added **rate limiting** and a **React dashboard** for monitoring. The goal is to build a minimal viable product (MVP) in under two weeks as a solo developer, using Node.js (TypeScript) for the backend and React for the frontend, with the project hosted on GitHub as a portfolio piece.
 
+## **Implementation Status**
+
+Current Progress:
+- ✅ Phase 1: Planning & Requirements complete
+- ✅ Phase 2: Project Setup & Environment complete
+- 🔄 Phase 3: Core Backend Implementation in progress
+  - Basic Express server setup complete
+  - WebSocket infrastructure in place
+  - API router stub created
+  - CLI arguments handling implemented
+- 🔄 Phase 4: React Dashboard Implementation started
+  - Basic Vite + React setup complete
+  - Initial App component created
+  - Proxy configuration done
+- ⏳ Phase 5: Testing & Stabilization pending
+- ⏳ Phase 6: Deployment & Documentation pending
+
+Next Steps:
+- Implement actual tunnel functionality
+- Complete WebSocket protocol for tunnel connections
+- Add request forwarding logic
+- Implement rate limiting
+- Develop dashboard UI components
+- Create real API endpoints
+
 Ngrok is a popular tool that creates a secure tunnel from a public URL to a local server, allowing anyone to access a developer's local application via the internet. Open-source alternatives like **localtunnel** similarly expose a localhost service to the world with minimal setup. This project will implement a similar tunneling service as an npm package, featuring built-in request rate limiting for abuse prevention and a web dashboard (built with React) for monitoring tunnels and traffic (much like ngrok's web UI at [http://localhost:4040](http://localhost:4040/) that inspects HTTP traffic).
 
 Below is the comprehensive plan, structured by development phases, module checklists, testing strategy, and technical specifications.
@@ -14,7 +39,7 @@ The project is divided into phases with specific tasks and sub-tasks in each. Th
 
 * **Define Core Features:** Document the primary functionality – tunneling HTTP/HTTPS traffic from a local port to a public URL, similar to ngrok. Identify enhancements: request **rate limiting** and a **web dashboard** for monitoring.
 
-* **Research & Feasibility:** Review how existing tools work (ngrok, localtunnel). For example, localtunnel uses a client-server model where the client opens a TCP connection to a server which then forwards HTTP requests to the client’s local server. Decide on using a similar reverse proxy approach (Node server as the tunnel server and a Node client/CLI connecting from local).
+* **Research & Feasibility:** Review how existing tools work (ngrok, localtunnel). For example, localtunnel uses a client-server model where the client opens a TCP connection to a server which then forwards HTTP requests to the client's local server. Decide on using a similar reverse proxy approach (Node server as the tunnel server and a Node client/CLI connecting from local).
 
 * **Technology Selection:** Confirm the tech stack:
 
@@ -72,9 +97,9 @@ The project is divided into phases with specific tasks and sub-tasks in each. Th
 
     * When the client (running on the user's machine) connects to the server (perhaps to an endpoint like `/connect` via WebSocket), the server assigns an ID or port for that tunnel and keeps the connection open.
 
-    * For each incoming HTTP request on the server intended for that tunnel, forward the request data through the socket to the client. The client will then proxy it to the local target server (the developer’s local app) and return the response, which the server then sends back to the original requester.
+    * For each incoming HTTP request on the server intended for that tunnel, forward the request data through the socket to the client. The client will then proxy it to the local target server (the developer's local app) and return the response, which the server then sends back to the original requester.
 
-    * Implement basic request forwarding logic. This can be done by sending raw HTTP over the socket or by a simpler approach: use an HTTP proxy library. For MVP, a straightforward method is to handle HTTP requests on the server by buffering the request (method, headers, body), sending a message to the client, then waiting for the client’s response to respond to the HTTP caller.
+    * Implement basic request forwarding logic. This can be done by sending raw HTTP over the socket or by a simpler approach: use an HTTP proxy library. For MVP, a straightforward method is to handle HTTP requests on the server by buffering the request (method, headers, body), sending a message to the client, then waiting for the client's response to respond to the HTTP caller.
 
   * **Rate Limiting:** Integrate the `express-rate-limit` middleware to throttle incoming requests per tunnel:
 
@@ -98,7 +123,7 @@ The project is divided into phases with specific tasks and sub-tasks in each. Th
 
     * For MVP simplicity, implement a single persistent connection to handle all traffic sequentially. (As an enhancement, multiple parallel connections could be opened to handle concurrent requests, similar to how localtunnel opens 10 connections for throughput, but this can be skipped initially.)
 
-    * Provide user feedback: once connected, output the public URL (either `http://<server>:<port>/<id>` or `http://<id>.<domain>` if domain is configured). For example, “Tunnel established at \*\*[http://localhost:3000/abcd\*\*”](http://localhost:3000/abcd**%E2%80%9D).
+    * Provide user feedback: once connected, output the public URL (either `http://<server>:<port>/<id>` or `http://<id>.<domain>` if domain is configured). For example, "Tunnel established at \*\*[http://localhost:3000/abcd\*\*](http://localhost:3000/abcd**%E2%80%9D).
 
     * Handle client-side errors gracefully (e.g., connection drop, local server down, etc.) possibly with auto-reconnect or at least clear messages.
 
@@ -116,9 +141,9 @@ The project is divided into phases with specific tasks and sub-tasks in each. Th
 
 *In this phase, build the React frontend that will serve as a dashboard to monitor the tunnels.*
 
-* **Dashboard Setup:** Initialize the React project (if not done in Phase 2). If using Create React App, ensure it’s ejected or configured for customization as needed. Alternatively, use Vite for a quick TypeScript React setup.
+* **Dashboard Setup:** Initialize the React project (if not done in Phase 2). If using Create React App, ensure it's ejected or configured for customization as needed. Alternatively, use Vite for a quick TypeScript React setup.
 
-* **UI Design:** Plan the dashboard’s main screen:
+* **UI Design:** Plan the dashboard's main screen:
 
   * A table or list of active tunnels, showing fields like **Tunnel ID/URL**, **Local Port**, **Status** (connected/disconnected), **Requests Count**, **Rate Limit Status** (e.g., requests remaining in window).
 
@@ -168,23 +193,23 @@ The project is divided into phases with specific tasks and sub-tasks in each. Th
 
   * Use a testing framework like **Jest** for JavaScript/TypeScript on the backend.
 
-  * If possible, mock the networking: e.g., simulate a fake client connection to ensure the server’s request routing logic calls the right functions.
+  * If possible, mock the networking: e.g., simulate a fake client connection to ensure the server's request routing logic calls the right functions.
 
 * **Write Integration Tests (Backend):** Test end-to-end tunnel flow in a controlled environment:
 
-  * Launch a test HTTP server (serving dummy content) on a local port (simulate the user’s local service).
+  * Launch a test HTTP server (serving dummy content) on a local port (simulate the user's local service).
 
   * Programmatically start the tunnel server (perhaps in a child process or in-memory if the design allows).
 
   * Run the tunnel client (maybe as a function if exported, or also as a subprocess) pointing to the dummy local server.
 
-  * Use a library like **supertest** or **axios** to send an HTTP request to the tunnel’s public URL (could be `http://localhost:<port>/<id>/...` in test).
+  * Use a library like **supertest** or **axios** to send an HTTP request to the tunnel's public URL (could be `http://localhost:<port>/<id>/...` in test).
 
-  * Verify that the response matches the dummy server’s response, indicating the tunnel worked correctly.
+  * Verify that the response matches the dummy server's response, indicating the tunnel worked correctly.
 
   * Also verify the rate limiting: e.g., send more than allowed requests in a short time and expect a 429 Too Many Requests response for the excess ones.
 
-* **Test React Components:** Use **React Testing Library** and Jest to test the dashboard’s components in isolation:
+* **Test React Components:** Use **React Testing Library** and Jest to test the dashboard's components in isolation:
 
   * Mock the fetch API to simulate `/api/tunnels` responses and ensure the UI renders the tunnel list correctly.
 
@@ -210,7 +235,7 @@ The project is divided into phases with specific tasks and sub-tasks in each. Th
 
 * **Prepare for Release:** Finalize the npm package details:
 
-  * Ensure the root `package.json` has correct name, version, bin field (for CLI), description, keywords (to highlight “ngrok-like”, “tunneling”, etc.), author info, and license.
+  * Ensure the root `package.json` has correct name, version, bin field (for CLI), description, keywords (to highlight "ngrok-like", "tunneling", etc.), author info, and license.
 
   * Run a build for the backend (TypeScript compile to JavaScript in a `dist` folder).
 
@@ -250,11 +275,11 @@ The project is divided into phases with specific tasks and sub-tasks in each. Th
 
   * Tag the release (e.g., v0.1.0) in Git and push.
 
-* **Post-MVP Plans:** Document any features or improvements that are left out due to time (such as custom subdomain support, authentication, more concurrent tunnels, persistent storage, etc.), to show a roadmap for the project’s future.
+* **Post-MVP Plans:** Document any features or improvements that are left out due to time (such as custom subdomain support, authentication, more concurrent tunnels, persistent storage, etc.), to show a roadmap for the project's future.
 
 ## **SDLC Checklist by Module**
 
-Below is a **Software Development Life Cycle (SDLC)**\-based checklist for each major module of the project, covering stages from requirements to deployment. This serves as a progress tracker and ensures each component has completed all development stages.
+Below is a **Software Development Life Cycle (SDLC)**-based checklist for each major module of the project, covering stages from requirements to deployment. This serves as a progress tracker and ensures each component has completed all development stages.
 
 ### **Module 1: Core Tunneling Engine (Backend Server & Client)**
 
@@ -262,11 +287,11 @@ Below is a **Software Development Life Cycle (SDLC)**\-based checklist for each 
 
 * **Design:** (✅ *Completed*) Outline how the server and client communicate (WebSocket vs TCP, message formats), how the server will map incoming requests to tunnels (using path or port mappings), and how rate limiting integrates into the request flow. Design includes module interface: e.g., a `TunnelServer` class with methods to start/stop and a `TunnelClient` class/CLI to initiate connection.
 
-* **Implementation:** (🔲 *In Progress*) Code the server in TypeScript (Express setup, WebSocket handling, request proxy logic) and the CLI client (argument parsing, connection setup, local proxying). Ensure the server properly spawns per-tunnel handlers or routes.
+* **Implementation:** (🔄 *In Progress*) Code the server in TypeScript (Express setup, WebSocket handling, request proxy logic) and the CLI client (argument parsing, connection setup, local proxying). Ensure the server properly spawns per-tunnel handlers or routes.
 
-* **Testing:** (🔲 *Pending*) Write unit tests for internal functions (like ID generation, message handling) and integration tests for end-to-end tunneling (server-client loop). Verify rate limit triggers by sending bursts of requests.
+* **Testing:** (🔄 *Pending*) Write unit tests for internal functions (like ID generation, message handling) and integration tests for end-to-end tunneling (server-client loop). Verify rate limit triggers by sending bursts of requests.
 
-* **Deployment:** (🔲 *Pending*) Integrate this module into the npm package distribution (include CLI in package `bin`, ensure server code is compiled to JS and included). Confirm that running `npx <tool> --port 8080` effectively starts the server (if required) and client or otherwise running separate commands as documented.
+* **Deployment:** (🔄 *Pending*) Integrate this module into the npm package distribution (include CLI in package `bin`, ensure server code is compiled to JS and included). Confirm that running `npx <tool> --port 8080` effectively starts the server (if required) and client or otherwise running separate commands as documented.
 
 ### **Module 2: React Dashboard (Frontend)**
 
@@ -274,11 +299,11 @@ Below is a **Software Development Life Cycle (SDLC)**\-based checklist for each 
 
 * **Design:** (✅ *Completed*) Create wireframes or sketches of the UI – a main dashboard page listing tunnels, and maybe a detail view for each. Decide on using a single-page app with React Router (likely not needed for MVP) or just a single view. Plan component structure: e.g., `<TunnelList>`, `<TunnelStatsCard>`, etc., and state management (React hooks, context if needed).
 
-* **Implementation:** (🔲 *In Progress*) Build the React components and pages. Implement API calls to the backend (`fetch('/api/tunnels')`) and state updates. Apply styling for usability. Ensure production build outputs static files that can be served by the backend.
+* **Implementation:** (🔄 *In Progress*) Build the React components and pages. Implement API calls to the backend (`fetch('/api/tunnels')`) and state updates. Apply styling for usability. Ensure production build outputs static files that can be served by the backend.
 
-* **Testing:** (🔲 *Pending*) Write unit tests for components (using mocked data). Ensure components render correctly with given props or state. Run a development instance connected to a real backend to test manual scenarios (tunnel comes and goes, data updates). Check that the dashboard handles no-tunnel (empty state) gracefully.
+* **Testing:** (🔄 *Pending*) Write unit tests for components (using mocked data). Ensure components render correctly with given props or state. Run a development instance connected to a real backend to test manual scenarios (tunnel comes and goes, data updates). Check that the dashboard handles no-tunnel (empty state) gracefully.
 
-* **Deployment:** (🔲 *Pending*) Build the app for production. Update the backend to serve the static files (e.g., an Express static middleware pointing to `dashboard/build`). Verify that navigating to the dashboard (e.g., `http://localhost:4040` if chosen port 4040\) shows the UI and it can fetch data from the running server. Include instructions in documentation for how to start the dashboard (it might be automatic when server runs, or a separate `npm start` for dev mode).
+* **Deployment:** (🔄 *Pending*) Build the app for production. Update the backend to serve the static files (e.g., an Express static middleware pointing to `dashboard/build`). Verify that navigating to the dashboard (e.g., `http://localhost:4040` if chosen port 4040\) shows the UI and it can fetch data from the running server. Include instructions in documentation for how to start the dashboard (it might be automatic when server runs, or a separate `npm start` for dev mode).
 
 ### **Module 3: Rate Limiting Feature**
 
@@ -288,11 +313,11 @@ Below is a **Software Development Life Cycle (SDLC)**\-based checklist for each 
 
 * **Design:** (✅ *Completed*) Choose middleware-based implementation using `express-rate-limit` for simplicity. Determine if a global rate limit or a per-tunnel instance is needed. Design config: window size, max hits, and the message or behavior when exceeded. Plan where to attach this in the Express request handling pipeline (likely on the router serving tunneled requests).
 
-* **Implementation:** (🔲 *In Progress*) Install and configure **express-rate-limit**. Initialize it with the chosen policy (e.g., `windowMs = 60*1000ms, max = 100` for 100 requests/minute per IP by default). Apply it to the relevant Express route (or globally to all incoming tunnel requests). Ensure the middleware is only affecting external requests, not the internal API.
+* **Implementation:** (🔄 *In Progress*) Install and configure **express-rate-limit**. Initialize it with the chosen policy (e.g., `windowMs = 60*1000ms, max = 100` for 100 requests/minute per IP by default). Apply it to the relevant Express route (or globally to all incoming tunnel requests). Ensure the middleware is only affecting external requests, not the internal API.
 
-* **Testing:** (🔲 *Pending*) Unit test the configuration (e.g., using a small `windowMs` in a test environment and sending dummy requests to trigger it). Integration test by making more requests than allowed through the tunnel and expecting a 429 response for the overflow. Verify that normal usage under the limit is unaffected. Confirm headers like `Retry-After` or RateLimit headers if any are correct (the middleware can send standard rate-limit headers for transparency).
+* **Testing:** (🔄 *Pending*) Unit test the configuration (e.g., using a small `windowMs` in a test environment and sending dummy requests to trigger it). Integration test by making more requests than allowed through the tunnel and expecting a 429 response for the overflow. Verify that normal usage under the limit is unaffected. Confirm headers like `Retry-After` or RateLimit headers if any are correct (the middleware can send standard rate-limit headers for transparency).
 
-* **Deployment:** (🔲 *Pending*) No special deployment step aside from including it in the server. Ensure documentation mentions the rate limiting feature and the defaults. If the rate limits are configurable via environment or parameters, document those.
+* **Deployment:** (🔄 *Pending*) No special deployment step aside from including it in the server. Ensure documentation mentions the rate limiting feature and the defaults. If the rate limits are configurable via environment or parameters, document those.
 
 ### **Module 4: GitHub Repository & DevOps**
 
@@ -302,11 +327,11 @@ Below is a **Software Development Life Cycle (SDLC)**\-based checklist for each 
 
 * **Design:** (✅ *Completed*) Decide on branch strategy: e.g., use a `main` branch for stable code and feature branches for development. Plan to use **Conventional Commits** format for commit messages (e.g., "feat: add tunnel server logic") for clarity. Outline a simple PR workflow even as a solo dev (self-review via PRs before merging to main). Determine CI needs: use GitHub Actions to run tests and linters on push.
 
-* **Implementation:** (🔲 *In Progress*) Set up branch protection rules on `main` (if applicable). Create initial `develop` or feature branches as needed (e.g., `feature/core-tunnel`, `feature/dashboard-ui`). Write a `.github/workflows/ci.yml` for running Node tests and React build on each commit. Implement commit hooks (using Husky) for linting on commit or commit message lint if using commitlint with Conventional Commits.
+* **Implementation:** (🔄 *In Progress*) Set up branch protection rules on `main` (if applicable). Create initial `develop` or feature branches as needed (e.g., `feature/core-tunnel`, `feature/dashboard-ui`). Write a `.github/workflows/ci.yml` for running Node tests and React build on each commit. Implement commit hooks (using Husky) for linting on commit or commit message lint if using commitlint with Conventional Commits.
 
-* **Testing:** (🔲 *Pending*) Verify that CI passes with the current test suite. Test that merging a PR triggers the workflow. Ensure that the repo is accessible and the README instructions actually work on a fresh clone. (In lieu of a team code review, consider using a static analysis tool or performing a thorough code walkthrough.)
+* **Testing:** (🔄 *Pending*) Verify that CI passes with the current test suite. Test that merging a PR triggers the workflow. Ensure that the repo is accessible and the README instructions actually work on a fresh clone. (In lieu of a team code review, consider using a static analysis tool or performing a thorough code walkthrough.)
 
-* **Deployment:** (🔲 *Pending*) Tag the repository with a release. If publishing to npm, test the `npm publish` process on a dry run. Ensure the GitHub repo has the **GitHub Releases** updated (create a release description pointing to the tag and listing features). Optionally, post on relevant forums or communities (Dev.to, Reddit r/node) to showcase the project as part of portfolio deployment.
+* **Deployment:** (🔄 *Pending*) Tag the repository with a release. If publishing to npm, test the `npm publish` process on a dry run. Ensure the GitHub repo has the **GitHub Releases** updated (create a release description pointing to the tag and listing features). Optionally, post on relevant forums or communities (Dev.to, Reddit r/node) to showcase the project as part of portfolio deployment.
 
 ## **Module-Wise Testing Plan**
 
@@ -328,17 +353,17 @@ Testing will be conducted at both **unit** and **integration** levels for each m
 
   * *Argument Parsing:* If the CLI uses a library like yargs or commander, test that providing various flags (`--port`, `--host`, etc.) results in the correct configuration internally.
 
-  * *Connection Handling:* Factor out the client’s connection logic into a function (e.g., `connectToServer(host, port)`) and test its behavior. For instance, simulate a server that immediately closes connection or sends an unexpected response, and verify the client handles it (perhaps by retrying or outputting an error).
+  * *Connection Handling:* Factor out the client's connection logic into a function (e.g., `connectToServer(host, port)`) and test its behavior. For instance, simulate a server that immediately closes connection or sends an unexpected response, and verify the client handles it (perhaps by retrying or outputting an error).
 
   * *Local Proxy Function:* If the client has a function that receives a request from the server and then proxies it to the local app, test this function with a stubbed local server response to ensure it formats the response back properly.
 
 * **Integration Tests (End-to-End Tunnel):**
 
-  * Set up a **dummy local HTTP server** within the test (using Node’s http module or Express) that listens on a random port and returns a known response (e.g., "Hello Tunnel") for a test endpoint.
+  * Set up a **dummy local HTTP server** within the test (using Node's http module or Express) that listens on a random port and returns a known response (e.g., "Hello Tunnel") for a test endpoint.
 
   * Programmatically start the tunnel server (perhaps by requiring the main server module and calling an init function in a child process or separate thread if needed to mimic real operation).
 
-  * Use the tunnel client code to connect to the server and point it at the dummy local server’s port. (This could be done by invoking the CLI with `child_process.spawn` or by calling the underlying client logic if accessible via an API).
+  * Use the tunnel client code to connect to the server and point it at the dummy local server's port. (This could be done by invoking the CLI with `child_process.spawn` or by calling the underlying client logic if accessible via an API).
 
   * Once the tunnel is established (the client should log or the server should indicate readiness), use an HTTP client (like Axios or supertest) to send a request to the **public URL** provided by the server. For example, if the server indicated the tunnel URL is `http://localhost:3000/abcd`, the test would GET `http://localhost:3000/abcd/test-endpoint`.
 
@@ -418,7 +443,7 @@ Testing will be conducted at both **unit** and **integration** levels for each m
 
   * Try to send an invalid formatted request through the tunnel (maybe telnet to the port and send gibberish) and ensure the server handles it (likely by dropping the connection but staying alive).
 
-  * Ensure that the dashboard API is not exposed beyond what’s needed (for instance, the dashboard endpoints should ideally be separate from the tunneled traffic endpoints to avoid any possibility of conflicts or unauthorized access. Check that one cannot accidentally fetch `/api/tunnels` from the internet-facing tunnel endpoint without proper route separation).
+  * Ensure that the dashboard API is not exposed beyond what's needed (for instance, the dashboard endpoints should ideally be separate from the tunneled traffic endpoints to avoid any possibility of conflicts or unauthorized access. Check that one cannot accidentally fetch `/api/tunnels` from the internet-facing tunnel endpoint without proper route separation).
 
   * Check that sensitive operations (if any, like closing tunnels) are protected (for MVP, if there's no auth, it's okay, but note this in docs as a potential risk if someone finds the local dashboard).
 
@@ -438,7 +463,7 @@ This section specifies the technical details of the project, including the chose
 
 * **React (Frontend):** Use **React 18.x** (latest) for building the dashboard, along with **React DOM 18.x**. This ensures we have the latest features (hooks, concurrent rendering if needed, etc.). The build tool could be **Create React App 5** (which supports React 18\) or **Vite 4** for a faster, simpler setup with TypeScript support.
 
-* **JavaScript/TypeScript Target:** Transpile to ES2019+ for backend (Node 18 supports a lot of ES2020 features natively, so the TS config can target a relatively high level or even ESNext and rely on Node’s capability). For React, use JSX/TSX with target ES2015+ since bundlers will handle compatibility.
+* **JavaScript/TypeScript Target:** Transpile to ES2019+ for backend (Node 18 supports a lot of ES2020 features natively, so the TS config can target a relatively high level or even ESNext and rely on Node's capability). For React, use JSX/TSX with target ES2015+ since bundlers will handle compatibility.
 
 * **Other Tools:**
 
@@ -584,7 +609,7 @@ Below are the key libraries and dependencies for the project:
 
 To set up the development environment for this project, follow these steps:
 
-1. **Prerequisites:** Ensure **Node.js (\>=18.x)** is installed on your machine. It is recommended to use a Node version manager (nvm) to match the project’s Node version. Also install **npm 8/9** (comes with Node 18\) or your choice of Yarn/Pnpm if using those (the project by default will assume npm).
+1. **Prerequisites:** Ensure **Node.js (\>=18.x)** is installed on your machine. It is recommended to use a Node version manager (nvm) to match the project's Node version. Also install **npm 8/9** (comes with Node 18\) or your choice of Yarn/Pnpm if using those (the project by default will assume npm).
 
 2. **Clone Repository:** `git clone https://github.com/<yourusername>/<repo-name>.git` and `cd <repo-name>`.
 
@@ -608,7 +633,7 @@ To set up the development environment for this project, follow these steps:
 
    * Go to `server/` and run `npm run dev`. This might be set up to use ts-node or nodemon to compile and run `src/index.ts`. The server will start (by default on port 3000 or as configured).
 
-   * The server dev mode should log to console when it’s ready, e.g. "Tunnel server listening on port 3000".
+   * The server dev mode should log to console when it's ready, e.g. "Tunnel server listening on port 3000".
 
    * Also, running the server in dev mode might automatically serve the React app's static files if they are built, but during active development, we'll use React's dev server.
 
@@ -658,15 +683,15 @@ By following the above, a developer should be able to get the environment runnin
 
 ### **Testing Tools and Coverage Goals**
 
-* **Testing Framework:** We use **Jest** as the primary testing framework for both backend and frontend. Jest provides a unified way to write tests and assertions, and it’s configured out-of-the-box for React projects. On the backend, Jest plus ts-jest will handle TypeScript seamlessly.
+* **Testing Framework:** We use **Jest** as the primary testing framework for both backend and frontend. Jest provides a unified way to write tests and assertions, and it's configured out-of-the-box for React projects. On the backend, Jest plus ts-jest will handle TypeScript seamlessly.
 
-* **Assertion Library:** The assertions will be done via Jest’s built-in expect API. For any specialty assertions (like on DOM nodes), React Testing Library extends Jest with DOM matchers.
+* **Assertion Library:** The assertions will be done via Jest's built-in expect API. For any specialty assertions (like on DOM nodes), React Testing Library extends Jest with DOM matchers.
 
-* **React Testing:** **@testing-library/react** is included to facilitate rendering components in a test DOM and making assertions on their output. It encourages testing the app from the user’s perspective (finding elements by text, role, etc., rather than testing implementation details).
+* **React Testing:** **@testing-library/react** is included to facilitate rendering components in a test DOM and making assertions on their output. It encourages testing the app from the user's perspective (finding elements by text, role, etc., rather than testing implementation details).
 
 * **Mocking:** For modules like network requests:
 
-  * Use Jest’s mocking capabilities or **Mock Service Worker (msw)** to simulate API responses in frontend tests.
+  * Use Jest's mocking capabilities or **Mock Service Worker (msw)** to simulate API responses in frontend tests.
 
   * On backend, use Jest to mock out external calls or heavy dependencies if any (though our backend might not need to call external services in this project).
 
@@ -684,11 +709,11 @@ By following the above, a developer should be able to get the environment runnin
 
   * React dashboard – at least the rendering of main components and one round-trip data fetch should be covered.
 
-  * Exclude trivial code (index.ts that just starts server, or auto-generated CRA files) from coverage metrics so they don’t skew results.
+  * Exclude trivial code (index.ts that just starts server, or auto-generated CRA files) from coverage metrics so they don't skew results.
 
 * Configure coverage collection in Jest (using `--coverage` flag or Jest config). Optionally generate an HTML coverage report for inspection.
 
-* **Continuous Integration:** Integrate tests into the GitHub Actions workflow. E.g., a job that installs dependencies, runs `npm run build` and then `npm test -- --coverage` to ensure tests pass and to report coverage. (The coverage can be checked to ensure it doesn’t drop below a threshold).
+* **Continuous Integration:** Integrate tests into the GitHub Actions workflow. E.g., a job that installs dependencies, runs `npm run build` and then `npm test -- --coverage` to ensure tests pass and to report coverage. (The coverage can be checked to ensure it doesn't drop below a threshold).
 
 * **Manual Testing:** In addition to automated tests, allocate time for manual testing sessions:
 
@@ -724,7 +749,7 @@ Maintaining high standards in the GitHub repository is important for collaborati
 
 * **Pull Requests:** Even though the developer is solo, all changes should go through a Pull Request on GitHub:
 
-  * Open a PR from the feature branch to main with a clear description of what’s being added/changed.
+  * Open a PR from the feature branch to main with a clear description of what's being added/changed.
 
   * The PR template (if added in `.github/PULL_REQUEST_TEMPLATE.md`) can remind to check tests passing and coverage.
 
@@ -860,15 +885,15 @@ Keep this CLI running; it maintains the connection. You might see logs of any re
 
 * Share that URL; your colleague visits it and sees your web app.
 
-* Monitor the dashboard to watch the requests as they interact. If they hammer it and go above rate limit, they’ll get blocked temporarily (which you’ll also see indicated on the dashboard).
+* Monitor the dashboard to watch the requests as they interact. If they hammer it and go above rate limit, they'll get blocked temporarily (which you'll also see indicated on the dashboard).
 
 **Additional Notes:**
 
 * If the package is installed globally, the commands `mytunnel-server` and `mytunnel connect` (or possibly a single `mytunnel` command with subcommands) will be available. If using via npx, prefix commands with `npx`.
 
-* On first run, the system might prompt firewall permissions (especially on Windows or Mac) since it’s opening ports for listening.
+* On first run, the system might prompt firewall permissions (especially on Windows or Mac) since it's opening ports for listening.
 
-* The tool currently does not enforce authentication – meaning anyone who knows your tunnel URL can access it. For secure sharing, you might want to add your own app’s auth or only share URLs privately. Future versions could incorporate access control.
+* The tool currently does not enforce authentication – meaning anyone who knows your tunnel URL can access it. For secure sharing, you might want to add your own app's auth or only share URLs privately. Future versions could incorporate access control.
 
 * If the tunnel server is deployed on a cloud VM or similar, you would run `mytunnel-server` on the VM, and on your local machine run `mytunnel connect --host <vm-address> --port 80 --local-port 8080` (for example) to connect to it. Ensure ports are open and DNS is configured if using hostnames.
 

@@ -1,5 +1,5 @@
 ---
-description: 
+description: implementation checklist
 globs: 
 alwaysApply: false
 ---
@@ -18,35 +18,38 @@ alwaysApply: false
   - [x] Dashboard [dashboard/README.md](mdc:dashboard/README.md)
 
 ## Server Implementation
-### Core Server (70% Complete)
+### Core Server (90% Complete)
 - [x] Basic Express server setup [server/src/index.ts](mdc:server/src/index.ts)
 - [x] Health check endpoint
 - [x] WebSocket server initialization [server/src/tunnelServer.ts](mdc:server/src/tunnelServer.ts)
 - [x] API router structure [server/src/api/index.ts](mdc:server/src/api/index.ts)
-- [ ] Tunnel management system
-  - [ ] Tunnel creation
-  - [ ] Tunnel deletion
-  - [ ] Active tunnels tracking
-- [ ] Request forwarding logic
-- [ ] Rate limiting implementation
+- [x] Tunnel management system
+  - [x] Tunnel creation
+  - [x] Tunnel deletion
+  - [x] Active tunnels tracking
+- [x] Request forwarding logic
+- [x] Rate limiting implementation
+- [x] WebSocket message protocol
 - [ ] Error handling & logging
 
-### CLI Implementation (30% Complete)
+### CLI Implementation (80% Complete)
 - [x] Basic CLI setup [server/bin/connect.ts](mdc:server/bin/connect.ts)
 - [x] Command line arguments parsing
-- [ ] WebSocket client connection
-- [ ] Local port forwarding
-- [ ] Error handling
+- [x] WebSocket client connection
+- [x] Error handling
+- [x] Local server health check
+- [x] Local port forwarding
 - [ ] Reconnection logic
-- [ ] Progress/Status display
+- [x] Progress/Status display
 
-### API Endpoints (10% Complete)
+### API Endpoints (80% Complete)
 - [x] API router setup
-- [ ] GET /api/tunnels endpoint
-- [ ] GET /api/tunnels/:id endpoint
-- [ ] POST /api/tunnels endpoint
-- [ ] DELETE /api/tunnels/:id endpoint
-- [ ] GET /api/tunnels/:id/stats endpoint
+- [x] GET /api/tunnels endpoint
+- [x] GET /api/tunnels/:id endpoint
+- [x] GET /api/tunnels/:id/stats endpoint
+- [x] DELETE /api/tunnels/:id endpoint
+- [ ] Error handling improvements
+- [ ] Request logging middleware
 
 ## Dashboard Implementation (20% Complete)
 ### Basic Setup

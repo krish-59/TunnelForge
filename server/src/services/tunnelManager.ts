@@ -16,6 +16,7 @@ export class TunnelManager {
       lastRequestTime: null,
       createdAt: Date.now(),
       rateLimitRemaining: 100, // Default rate limit
+      rateLimitReset: Date.now() + 15 * 60 * 1000, // 15 minutes from now
     };
 
     const tunnel: Tunnel = { id, localPort, socket, stats };
@@ -57,11 +58,18 @@ export class TunnelManager {
     if (tunnel) {
       tunnel.stats.requestCount++;
       tunnel.stats.lastRequestTime = Date.now();
-      // Decrease remaining rate limit (simple implementation)
-      tunnel.stats.rateLimitRemaining = Math.max(
-        0,
-        tunnel.stats.rateLimitRemaining - 1
-      );
+
+      // Check if rate limit reset time has passed
+      if (Date.now() > tunnel.stats.rateLimitReset) {
+        tunnel.stats.rateLimitRemaining = 100; // Reset to default limit
+        tunnel.stats.rateLimitReset = Date.now() + 15 * 60 * 1000; // Set next reset time
+      } else {
+        // Decrease remaining rate limit
+        tunnel.stats.rateLimitRemaining = Math.max(
+          0,
+          tunnel.stats.rateLimitRemaining - 1
+        );
+      }
     }
   }
 }
